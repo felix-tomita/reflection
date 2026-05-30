@@ -1,0 +1,61 @@
+﻿Sub InputLongText()
+    Dim app As Object, frame As Object, terminal As Object, screen As Object
+    Set app = GetObject("Reflection Workspace")
+    Set frame = app.GetObject("Frame")
+    Set terminal = frame.SelectedView.Control
+    Set screen = terminal.Screen
+
+    ' --- 設定エリア ---
+    Dim targetText As String
+    targetText = "ここに全角日本語を含む８０文字以上の非常に長い文字列を入力します。全角文字が画面の右端で途切れて文字化けしないように、プログラム側で安全な長さに自動分割しながら、次の行へ順番に PutText2 を実行していきます。"
+    
+    Dim startRow As Integer: startRow = 10  ' 入力を開始する最初の行
+    Dim startCol As Integer: startCol = 20  ' 入力を開始する列（例: 20列目）
+    Dim maxBytes As Integer: maxBytes = 55  ' 1行に入力できる最大バイト数 (80列 - 開始20列 = 残り60。余裕を見て55に設定)
+    ' ------------------
+
+    Dim currentText As String
+    Dim remainingText As String
+    Dim currentRow As Integer
+    
+    remainingText = targetText
+    currentRow = startRow
+
+    ' 文字列がなくなるまでループ処理
+    Do While Len(remainingText) > 0
+        ' 1行分の安全な文字列を切り出す
+        currentText = CutStringByByte(remainingText, maxBytes)
+        
+        ' 残りの文字列を更新
+        remainingText = Mid(remainingText, Len(currentText) + 1)
+        
+        ' Reflectionの画面に入力
+        screen.PutText2 currentText, currentRow, startCol
+        
+        ' 次の行へ移動
+        currentRow = currentRow + 1
+    Loop
+End Sub
+
+' 💡 全角・半角を判定して安全なバイト数で文字列を切り出す関数
+Function CutStringByByte(str As String, maxB As Integer) As String
+    Dim i As Integer, bCount As Integer, c As String, res As String
+    res = ""
+    bCount = 0
+    
+    For i = 1 To Len(str)
+        c = Mid(str, i, 1)
+        ' Shift_JIS換算でのバイト数をチェック (全角=2, 半角=1)
+        If LenB(StrConv(c, vbFromUnicode)) = 2 Then
+            bCount = bCount + 2
+        Else
+            bCount = bCount + 1
+        End If
+        
+        ' 指定のバイト数を超えたらループを抜ける（この文字は含めない）
+        If bCount > maxB Then Exit For
+        res = res & c
+    Next i
+    
+    CutStringByByte = res
+End Function
